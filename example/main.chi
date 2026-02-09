@@ -1,4 +1,12 @@
-abra = %0 + %1  ; LazyTree - пустой контекст 
-cadabra = 10 + abra  ; LazyTree - пустой контекст 
+plus2 = %0 + 2
+result = (plus2::10) + (plus2::20)
+result
 
-cadabra: 15: 30
+; plus2 = %0 + 2
+; result = (10 | plus2) + (20 | plus2)
+; result
+
+; abra = %0 + %1
+; cadabra = 10 + abra + %0
+; 
+; cadabra: 15: 30

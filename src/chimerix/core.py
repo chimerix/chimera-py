@@ -35,8 +35,13 @@ class ArgStack:
 class KeyValueStack(ArgStack):
     key: bytes
 
-
-
+    def iter_keys(self):
+        next = self
+        while True:
+            yield next.key
+            if next.prev is None:
+                break
+            next = next.prev
 
 
 @dataclass
@@ -65,19 +70,47 @@ class Context:
             outer_context=self.outer_context,
         )
 
+    def append_local(self, key: bytes, value: LazyValue) -> "Context":
+        newctx = Context(
+            args=self.args,
+            local_context=KeyValueStack(value=value, key=key, prev=self.local_context),
+            outer_context=self.outer_context,
+        )
+        print(f"new local debug: {ctx_debug(newctx.local_context)}")
+        return newctx
+
+    def pop_arg(self) -> tuple["Context", ArgStack]:
+        if self.args is None:
+            raise RuntimeError("TODO arg is None")
+        nctx = Context(
+            args=self.args.prev,
+            local_context=self.local_context,
+            outer_context=self.outer_context,
+        )
+        print(f"{id(nctx)=}")
+        return nctx, self.args
+
     def find_local(self, variable: bytes) -> LazyValue | None:
-        return self._find_general(variable, self.local_context)
+        return self._find(variable, self.local_context)
 
     def find_outer(self, variable: bytes) -> LazyValue | None:
-        return self._find_general(variable, self.outer_context)
+        return self._find(variable, self.outer_context)
 
-    def _find_general(
+    def _find(
         self, variable: bytes, head: KeyValueStack | None
     ) -> LazyValue | None:
         next = head
         while True:
             if next is None:
+                print(f"DEBUG: variable not found. State: {ctx_debug(head)}")
                 return None
             if next.key == variable:
                 return next.value
             next = next.prev
+
+def ctx_debug(head: KeyValueStack | None) -> str:
+    joined = b" | ".join(head.iter_keys()) if head else b"<empty>"
+    return joined.decode()
+
+def ctx_len(head: KeyValueStack | None) -> int:
+    return len(list(head.iter_keys())) if head else 0

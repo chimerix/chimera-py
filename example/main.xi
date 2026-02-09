@@ -1,4 +1,4 @@
-abra = %0 + %1  ; LazyTree - пустой контекст 
-cadabra = 10 + abra  ; LazyTree - пустой контекст 
+abra = %0 + %1
+cadabra = 10 + abra
 
-result = cadabra: 15: 30
+x = cadabra: 15: 31

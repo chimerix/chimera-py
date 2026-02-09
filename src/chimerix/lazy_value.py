@@ -1,6 +1,6 @@
-from chimerix.core import VIT, Context
+# from chimerix.core import VIT, Context
 
 
-class LazyValue:
-    tree: VIT
-    context: Context
+# class LazyValue:
+#     tree: VIT
+#     context: Context
