@@ -93,7 +93,7 @@ wheels = [
 [[package]]
 name = "tree-sitter-chimera"
 version = "0.1.1"
-source = { git = "https://github.com/l1onsun/tree-sitter-chimera#1305714fdbfed38f01dc264678c4f01b84188ce9" }
+source = { git = "https://github.com/l1onsun/tree-sitter-chimera#5b0dfeed5775942fc76b81bc79e2fdef910ccdff" }
 
 [[package]]
 name = "typing-extensions"

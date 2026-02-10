@@ -66,7 +66,7 @@ def to_vit(node: Node) -> VIT:
                         left=to_vit(left),
                         right=to_vit(right),
                     )
-                case b":" | b"::":
+                case b":" | b"::" | b".":
                     return vit.Call(
                         node,
                         callee=to_vit(left),

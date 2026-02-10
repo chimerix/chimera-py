@@ -1,0 +1,18 @@
+[[language]]
+name = "chimera"
+scope = "source.chimera"
+injection-regex = "chimera"
+file-types = ["chi", "xi"]
+language-servers = ["mychimeralsp"]
+comment-token = ";"
+indent = { tab-width = 2, unit = "  " }
+
+[[grammar]]
+name = "chimera"
+# source = { git = "https://github.com/l1onsun/tree-sitter-chimera", rev = "5b0dfeed5775942fc76b81bc79e2fdef910ccdff" }
+source = { git = "https://github.com/l1onsun/tree-sitter-chimera", rev = "master" }
+
+[language-server.mychimeralsp]
+command = "python"
+args = ["-m", "lsp"]
+
