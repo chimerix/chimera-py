@@ -1,5 +1,7 @@
 import enum
 import functools
+import itertools
+from typing import Iterable
 
 from tree_sitter import Language, Node, Parser
 from tree_sitter_chimera import language
@@ -19,16 +21,19 @@ class TreeSitterTypes(enum.StrEnum):
     const_string = "const_string"
     const_number = "const_number"
     function_call_list = "function_call_list"
-    list_pattern = "list_pattern"
+    # list_pattern = "list_pattern"
     identifier = "identifier"
     group = "group"
+    comment = "comment"
 
+def skip_comments(children: Iterable[Node]) -> Iterable[Node]:
+    return filter(lambda x: x.type != TreeSitterTypes.comment,  children)
 
 def _child_n(node: Node, n: int) -> Node:
-    child = node.child(n)
-    if child is None:
-        raise TypeError(f"Node {node.type} does not have children")
-    return child
+    try:
+        return next(itertools.islice(skip_comments(node.children), n, None))
+    except StopIteration:
+        raise TypeError(f"Node {node.type} does not have {n}-nth children")
 
 
 _child_0 = functools.partial(_child_n, n=0)
@@ -39,7 +44,7 @@ _child_2 = functools.partial(_child_n, n=2)
 def to_vit(node: Node) -> VIT:
     match (node.type):
         case TreeSitterTypes.source_file:
-            return vit.pipe(node, list(map(to_vit, filter(lambda x: x.type != "comment",  node.children))))
+            return vit.pipe(node, list(map(to_vit, skip_comments(node.children))))
         case TreeSitterTypes.const_value:
             return to_vit(_child_0(node))
         case TreeSitterTypes.const_number:
@@ -93,8 +98,11 @@ def to_vit(node: Node) -> VIT:
         case TreeSitterTypes.identifier:
             return vit.Variable(node, node.text or b"???")
         case TreeSitterTypes.group:
-            if node.child_count != 3:
-                vit.VITError(node, f"Only group with one child supported currently, but got: {node.child_count - 2}")
-            return to_vit(_child_1(node))
+            if node.child_count < 3:
+                # vit.VITError(node, f"Only group with one child supported currently, but got: {node.child_count - 2}")
+                return vit.VITError(node, f"Group should contain at least 1 child, got: {node.child_count - 2}")
+            # skip_comments(node.children[1:-1])
+            # return to_vit(_child_1(node))
+            return vit.pipe(node, list(map(to_vit, skip_comments(node.children[1:-1]))))
         case other:
             return vit.VITError(node, f"Node unsupported yet: {other}")
