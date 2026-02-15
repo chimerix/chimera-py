@@ -55,10 +55,32 @@ def to_vit(node: Node) -> VIT:
             right = _child_2(node)
             match operator.text:
                 case b"+":
-                    return vit.Plus(
+                    return vit.PyOperator(
                         node,
                         left=to_vit(left),
                         right=to_vit(right),
+                        operator="__add__",
+                    )
+                case b"-":
+                    return vit.PyOperator(
+                        node,
+                        left=to_vit(left),
+                        right=to_vit(right),
+                        operator="__sub__",
+                    )
+                case b"*":
+                    return vit.PyOperator(
+                        node,
+                        left=to_vit(left),
+                        right=to_vit(right),
+                        operator="__mul__",
+                    )
+                case b"/":
+                    return vit.PyOperator(
+                        node,
+                        left=to_vit(left),
+                        right=to_vit(right),
+                        operator="__truediv__",
                     )
                 # case b".":
                 #     return CallOp(

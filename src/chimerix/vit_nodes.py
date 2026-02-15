@@ -61,9 +61,10 @@ class Int(TreeSitterVIT):
 
 
 @dataclass
-class Plus(TreeSitterVIT):
+class PyOperator(TreeSitterVIT):
     left: VIT
     right: VIT
+    operator: str
 
     def interpret(self, ctx: Context) -> Value:
         left = self.left.interpret(ctx)
@@ -73,7 +74,7 @@ class Plus(TreeSitterVIT):
         if isinstance(right.pointer, Error):
             return right
         try:
-            return Value(left.pointer + right.pointer)  # type: ignore
+            return Value(getattr(left.pointer, self.operator)(right.pointer))  # type: ignore
         except:
             return Value(
                 Error(
