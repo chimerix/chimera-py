@@ -21,6 +21,9 @@ class Value:
     pointer: Error | int | str | Any
     _type: None = None  # for usage in future self-hosted interpreter
 
+    # def __add__(self, other) -> Value:
+    #     return Value()
+
     # @classmethod
     # def error(cls, pointer, msg) -> Self:
     #     return cls(

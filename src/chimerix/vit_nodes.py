@@ -29,11 +29,8 @@ class Call(TreeSitterVIT):
     argument: VIT
 
     def interpret(self, ctx: Context) -> Value:
-        print(f"{type(self.callee)=}")
         ctx_with_arg = ctx.append_arg(LazyValue(self.argument, ctx))
-        print(ctx_debug(ctx_with_arg.local_context))
         return self.callee.interpret(ctx_with_arg)
-        # return self.callee.interpret(ctx.append_arg(LazyValue(self.argument, ctx)))
 
 
 @dataclass
@@ -41,7 +38,6 @@ class Variable(TreeSitterVIT):
     value: bytes
 
     def interpret(self, ctx: Context) -> Value:
-        print(f"in variable {id(ctx)=}")
         found = ctx.find_local(self.value)
         if found is None:
             return Value(
@@ -102,11 +98,7 @@ class Assign(TreeSitterVIT):
             return Value(Error("No args passed"))
         key = self.left.value
         ctx, arg = ctx.pop_arg()
-        print(f"arg is: {type(arg.value.tree)}" + error_format(arg.value.tree.node))
-        print(f"me is: {type(self)}" + error_format(self.node))
-        # print(f"arg and me are same? : {ctx.args.value.tree is self}")
         return arg.value.tree.interpret(
-            # ctx.args.value.context.append_local(key, LazyValue(self.right, ctx))
             ctx.append_local(key, LazyValue(self.right, ctx))
         )
 
@@ -118,7 +110,6 @@ class ArgumentPrefix(TreeSitterVIT):
     def interpret(self, ctx: Context) -> Value:
         value = self.child.interpret(ctx)
         if isinstance(value.pointer, Error):
-            print("just hm?")
             return value
         if not isinstance(value.pointer, int):
             return Value(Error(f"`%` child should be int, got `{value.pointer}`"))
@@ -151,12 +142,3 @@ def pipe(node: Node, group: list[VIT]) -> VIT:
     # return Call(node, pipe(node, group[:-1]), group[-1])
     return Call(node, group[0], pipe(node, group[1:]))
 
-
-"""
-    @pipe
-    abra = %0 + %1 ; LazyTree - пустой контекст 
-    cadabra = 10 + abra; LazyTree - пустой контекст 
-
-    cadabra: 15: 30
-
-"""

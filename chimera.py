@@ -25,38 +25,16 @@ def checkError(maybe_error: Value, message: str):
         sys.exit(0)
 
 if __name__ == "__main__":
-    print("Oh prepare...")
+    print("Preparing...")
     result = main()
-    print("\nWow? Checking...\n")
+    print("\nExexcution Succeed\n")
 
     if not isinstance(result, core.Value):
         print("what is it?", type(result))
         print("this is:", result)
         sys.exit(1)
 
-    checkError(result, "Not bad, error result is result:")
+    checkError(result, "Got Error:")
 
-    if not isinstance(result.pointer, core.Context):
-        print(f"{type(result.pointer)=}")
-        print(f"{result.pointer=}")
-        sys.exit(1)
-
-    result = cast(core.Context, result.pointer)
-
-    print("Nice!")
-    find_local = result.find_local(b"result")
-    if find_local is None:
-        print("Hm, result var not found =(")
-        next = result.local_context
-        while True:
-            if next is None:
-                print("|None|")
-                break
-            print(next.key)
-            next = next.prev
-        sys.exit(0)
-    print("The moment of ...")
-    value = find_local.get()
-    checkError(value, "Really not bad, error result is result:")
-    print("And ...:")
-    print(value.pointer)
+    print(f"result type: {type(result.pointer)}")
+    print(result.pointer)

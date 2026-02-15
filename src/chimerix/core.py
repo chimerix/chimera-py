@@ -71,13 +71,11 @@ class Context:
         )
 
     def append_local(self, key: bytes, value: LazyValue) -> "Context":
-        newctx = Context(
+        return Context(
             args=self.args,
             local_context=KeyValueStack(value=value, key=key, prev=self.local_context),
             outer_context=self.outer_context,
         )
-        print(f"new local debug: {ctx_debug(newctx.local_context)}")
-        return newctx
 
     def pop_arg(self) -> tuple["Context", ArgStack]:
         if self.args is None:
@@ -87,7 +85,6 @@ class Context:
             local_context=self.local_context,
             outer_context=self.outer_context,
         )
-        print(f"{id(nctx)=}")
         return nctx, self.args
 
     def find_local(self, variable: bytes) -> LazyValue | None:
