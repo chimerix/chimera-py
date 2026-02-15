@@ -120,7 +120,7 @@ class ArgumentPrefix(TreeSitterVIT):
                 break
             next = next.prev
         if next is None:
-            return Value(Error("Arg stack underflor"))
+            return Value(Error("Arg stack underfloor"))
         return next.value.tree.interpret(next.value.context)
 
 
