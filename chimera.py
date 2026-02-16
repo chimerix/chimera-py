@@ -1,5 +1,4 @@
 import sys
-from typing import cast
 
 import chimerix.core as core
 import chimerix.tree_sitter_map as chi_ts
@@ -18,6 +17,7 @@ def main():
 
 
 # ls = chimerix.LanguageServer(ctx, main)
+
 def checkError(maybe_error: Value, message: str):
     if isinstance(maybe_error.pointer, core.Error):
         print(message)

@@ -30,6 +30,13 @@ class ArgStack:
             return ArgStack(other.value, self)
         return self.append_stack(other.prev)
 
+    def __len__(self):
+        count = 1
+        next = self
+        while (next := next.prev):
+            count += 1
+        return count
+
 
 @dataclass
 class KeyValueStack(ArgStack):
@@ -46,46 +53,65 @@ class KeyValueStack(ArgStack):
 
 @dataclass
 class Context:
-    args: ArgStack | None = None
+    tree_args: ArgStack | None = None
+    simple_args: ArgStack | None = None
     local_context: KeyValueStack | None = None
     outer_context: KeyValueStack | None = None
 
-    def append_arg(self, arg: LazyValue) -> "Context":
+    def append_tree_arg(self, arg: LazyValue) -> "Context":
         return Context(
-            args=ArgStack(arg, self.args),
+            tree_args=ArgStack(arg, self.tree_args),
+            simple_args=self.simple_args,
             local_context=self.local_context,
             outer_context=self.outer_context,
         )
 
-    def append_args(self, args: ArgStack | None) -> "Context":
-        if args is None:
-            return self
-        if self.args is None:
-            appended = args
-        else:
-            appended = self.args.append_stack(args)
+    def append_simple_arg(self, arg: LazyValue) -> "Context":
         return Context(
-            args=appended,
+            tree_args=self.tree_args,
+            simple_args=ArgStack(arg, self.simple_args),
+            local_context=self.local_context,
+            outer_context=self.outer_context,
+        )
+
+    def append_args(self, tree_args: ArgStack | None, simple_args: ArgStack | None) -> "Context":
+        if tree_args is None:
+            appended_tree_args = self.tree_args
+        elif self.tree_args is None:
+            appended_tree_args = tree_args
+        else:
+            appended_tree_args = self.tree_args.append_stack(tree_args)
+        if simple_args is None:
+            appended_simple_args = self.simple_args
+        elif self.simple_args is None:
+            appended_simple_args = simple_args
+        else:
+            appended_simple_args = self.simple_args.append_stack(simple_args)
+        return Context(
+            tree_args=appended_tree_args,
+            simple_args=appended_simple_args,
             local_context=self.local_context,
             outer_context=self.outer_context,
         )
 
     def append_local(self, key: bytes, value: LazyValue) -> "Context":
         return Context(
-            args=self.args,
+            tree_args=self.tree_args,
+            simple_args=self.simple_args,
             local_context=KeyValueStack(value=value, key=key, prev=self.local_context),
             outer_context=self.outer_context,
         )
 
-    def pop_arg(self) -> tuple["Context", ArgStack]:
-        if self.args is None:
+    def pop_tree_arg(self) -> tuple["Context", ArgStack]:
+        if self.tree_args is None:
             raise RuntimeError("TODO arg is None")
         nctx = Context(
-            args=self.args.prev,
+            tree_args=self.tree_args.prev,
+            simple_args=self.simple_args,
             local_context=self.local_context,
             outer_context=self.outer_context,
         )
-        return nctx, self.args
+        return nctx, self.tree_args
 
     def find_local(self, variable: bytes) -> LazyValue | None:
         return self._find(variable, self.local_context)

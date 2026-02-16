@@ -1,3 +1,4 @@
+import itertools
 from dataclasses import dataclass
 
 from tree_sitter import Node
@@ -5,6 +6,8 @@ from tree_sitter import Node
 from chimerix.core import VIT, Context, LazyValue, ctx_debug
 from chimerix.ts_helpers import error_format
 from chimerix.value import Error, Value
+
+log = print  # TODO
 
 
 @dataclass
@@ -17,19 +20,28 @@ class VITError(TreeSitterVIT):
     message: str
 
     def __post_init__(self):
-        print(f"VIT ERROR: {self.message}")
+        log(f"VIT ERROR: {self.message}")
 
     def interpret(self, _: "Context") -> Value:
         return Value(Error(self.message))
 
 
 @dataclass
-class Call(TreeSitterVIT):
+class TreeCall(TreeSitterVIT):
     callee: VIT
     argument: VIT
 
     def interpret(self, ctx: Context) -> Value:
-        ctx_with_arg = ctx.append_arg(LazyValue(self.argument, ctx))
+        ctx_with_arg = ctx.append_tree_arg(LazyValue(self.argument, ctx))
+        return self.callee.interpret(ctx_with_arg)
+
+@dataclass
+class ArgCall(TreeSitterVIT):
+    callee: VIT
+    argument: VIT
+
+    def interpret(self, ctx: Context) -> Value:
+        ctx_with_arg = ctx.append_simple_arg(LazyValue(self.argument, ctx))
         return self.callee.interpret(ctx_with_arg)
 
 
@@ -46,7 +58,7 @@ class Variable(TreeSitterVIT):
                     + error_format(self.node)
                 )
             )
-        return found.tree.interpret(found.context.append_args(ctx.args))
+        return found.tree.interpret(found.context.append_args(ctx.tree_args, ctx.simple_args))
 
 
 @dataclass
@@ -54,6 +66,7 @@ class Int(TreeSitterVIT):
     value: bytes
 
     def interpret(self, ctx: Context) -> Value:
+        _ = ctx
         try:
             return Value(int(self.value))
         except:
@@ -95,10 +108,10 @@ class Assign(TreeSitterVIT):
                     f"left part of `=` operator should be single identifier, got: {type(self.left)}"
                 )
             )
-        if not ctx.args:
+        if not ctx.tree_args:
             return Value(Error("No args passed"))
         key = self.left.value
-        ctx, arg = ctx.pop_arg()
+        ctx, arg = ctx.pop_tree_arg()
         return arg.value.tree.interpret(
             ctx.append_local(key, LazyValue(self.right, ctx))
         )
@@ -114,13 +127,13 @@ class ArgumentPrefix(TreeSitterVIT):
             return value
         if not isinstance(value.pointer, int):
             return Value(Error(f"`%` child should be int, got `{value.pointer}`"))
-        next = ctx.args
+        next = ctx.simple_args
         for _ in range(value.pointer):
             if next is None:
                 break
             next = next.prev
         if next is None:
-            return Value(Error("Arg stack underfloor"))
+            return Value(Error("Arg stack underfloor").update(self.node))
         return next.value.tree.interpret(next.value.context)
 
 
@@ -129,10 +142,15 @@ class DebugNode(TreeSitterVIT):
     child: VIT
 
     def interpret(self, ctx: Context) -> Value:
-        print("-------")
-        print("DEBUG:", ctx_debug(ctx.local_context))
-        print("-------")
+        from rich import print as log
+
+        log("-------")
+        log("DEBUG:", ctx_debug(ctx.local_context))
+        log("CONTEXT:", ctx)
+        log("child:", self.child)
+        log("-------")
         return self.child.interpret(ctx)
+
 
 
 def pipe(node: Node, group: list[VIT]) -> VIT:
@@ -140,6 +158,4 @@ def pipe(node: Node, group: list[VIT]) -> VIT:
         return VIT()
     if len(group) == 1:
         return group[0]
-    # return Call(node, pipe(node, group[:-1]), group[-1])
-    return Call(node, group[0], pipe(node, group[1:]))
-
+    return TreeCall(node, group[0], pipe(node, group[1:]))

@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 from typing import Any
+
+from chimerix.ts_helpers import error_format
+from tree_sitter import Node
 # import enum
 # from typing import Any, Self
 
@@ -15,6 +18,9 @@ class Error:
     filename: str = ""
     range: tuple[int, int] = (0, 0)
 
+    def update(self, node: Node) -> "Error":
+        self.message = f"{self.message}\n{error_format(node)}"
+        return self
 
 @dataclass
 class Value:

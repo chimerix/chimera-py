@@ -20,8 +20,6 @@ class TreeSitterTypes(enum.StrEnum):
     const_value = "const_value"
     const_string = "const_string"
     const_number = "const_number"
-    function_call_list = "function_call_list"
-    # list_pattern = "list_pattern"
     identifier = "identifier"
     group = "group"
     comment = "comment"
@@ -82,25 +80,26 @@ def to_vit(node: Node) -> VIT:
                         right=to_vit(right),
                         operator="__truediv__",
                     )
-                # case b".":
-                #     return CallOp(
-                #         left=to_interpreter_tree(left),
-                #         right=ContextIdentifier(to_interpreter_tree(right)),
-                #     )
                 case b"=":
                     return vit.Assign(
                         node,
                         left=to_vit(left),
                         right=to_vit(right),
                     )
-                case b":" | b"::" | b".":
-                    return vit.Call(
+                case b".":
+                    return vit.TreeCall(
+                        node,
+                        callee=to_vit(left),
+                        argument=to_vit(right),
+                    )
+                case b":" | b"::":
+                    return vit.ArgCall(
                         node,
                         callee=to_vit(left),
                         argument=to_vit(right),
                     )
                 case b"|":
-                    return vit.Call(
+                    return vit.ArgCall(
                         node,
                         callee=to_vit(right),
                         argument=to_vit(left),
@@ -121,10 +120,7 @@ def to_vit(node: Node) -> VIT:
             return vit.Variable(node, node.text or b"???")
         case TreeSitterTypes.group:
             if node.child_count < 3:
-                # vit.VITError(node, f"Only group with one child supported currently, but got: {node.child_count - 2}")
                 return vit.VITError(node, f"Group should contain at least 1 child, got: {node.child_count - 2}")
-            # skip_comments(node.children[1:-1])
-            # return to_vit(_child_1(node))
             return vit.pipe(node, list(map(to_vit, skip_comments(node.children[1:-1]))))
         case other:
             return vit.VITError(node, f"Node unsupported yet: {other}")

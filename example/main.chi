@@ -1,14 +1,7 @@
-plus2 = %0 + 2
-result = plus2.10 + plus2.20
-; result2 = (10 | plus2) + (20 | plus2)
-; result3 = 10 | plus2 + 20 | plus2
-result3
+Point = (
+  x = %0
+  y = %1
+  sum = x + y
+)
 
-; plus2 = %0 + 2
-; result = (10 | plus2) + (20 | plus2)
-; result
-
-; abra = %0 + %1
-; cadabra = 10 + abra + %0
-; 
-; cadabra: 15: 30
+(Point:1:1000).sum + Point.sum:2:1000
