@@ -1,17 +1,29 @@
-import itertools
 from dataclasses import dataclass
 
 from tree_sitter import Node
 
-from chimerix.core import VIT, Context, LazyValue, ctx_debug
+from chimerix.core import VIT, ArgStack, Context, LazyValue
 from chimerix.ts_helpers import error_format
 from chimerix.value import Error, Value
 
 log = print  # TODO
 
 
+class LoggingMeta(type):
+    def __new__(cls, name, bases, attrs):
+        if "interpret" in attrs:
+            original_interpret = attrs["interpret"]
+
+            def wrapped_interpret(self, ctx):
+                log(f">>> {type(self).__name__}", error_format(self.node))
+                return original_interpret(self, ctx)
+
+            attrs["interpret"] = wrapped_interpret
+        return super().__new__(cls, name, bases, attrs)
+
+
 @dataclass
-class TreeSitterVIT(VIT):
+class TreeSitterVIT(VIT, metaclass=LoggingMeta):
     node: Node
 
 
@@ -32,8 +44,25 @@ class TreeCall(TreeSitterVIT):
     argument: VIT
 
     def interpret(self, ctx: Context) -> Value:
-        ctx_with_arg = ctx.append_tree_arg(LazyValue(self.argument, ctx))
-        return self.callee.interpret(ctx_with_arg)
+        ctx_with_tree_arg = ctx.append_tree_arg(LazyValue(self.argument, ctx))
+        return self.callee.interpret(ctx_with_tree_arg)
+
+
+@dataclass
+class DotCall(TreeSitterVIT):
+    callee: VIT
+    argument: VIT
+
+    def interpret(self, ctx: Context) -> Value:
+        return self.callee.interpret(
+            Context(
+                tree_args=ArgStack(LazyValue(self.argument, ctx), ctx.tree_args),
+                simple_args=None,
+                local_context=ctx.local_context,
+                outer_context=ctx.outer_context,
+            )
+        )
+
 
 @dataclass
 class ArgCall(TreeSitterVIT):
@@ -58,7 +87,10 @@ class Variable(TreeSitterVIT):
                     + error_format(self.node)
                 )
             )
-        return found.tree.interpret(found.context.append_args(ctx.tree_args, ctx.simple_args))
+
+        return found.tree.interpret(
+            found.context.append_args(ctx.tree_args, ctx.simple_args)
+        )
 
 
 @dataclass
@@ -69,6 +101,18 @@ class Int(TreeSitterVIT):
         _ = ctx
         try:
             return Value(int(self.value))
+        except:
+            return Value(Error(f"Error parsing number: `{self.value.decode()}`"))
+
+
+@dataclass
+class String(TreeSitterVIT):
+    value: bytes
+
+    def interpret(self, ctx: Context) -> Value:
+        _ = ctx
+        try:
+            return Value(str(self.value))
         except:
             return Value(Error(f"Error parsing number: `{self.value.decode()}`"))
 
@@ -142,15 +186,13 @@ class DebugNode(TreeSitterVIT):
     child: VIT
 
     def interpret(self, ctx: Context) -> Value:
-        from rich import print as log
+        import rich
 
-        log("-------")
-        log("DEBUG:", ctx_debug(ctx.local_context))
-        log("CONTEXT:", ctx)
-        log("child:", self.child)
-        log("-------")
+        rich.print("-------<")
+        log("DEGUG", error_format(self.node))
+        list(map(rich.print ,(ctx.simple_args.debug() if ctx.simple_args else ())))
+        rich.print(">-------")
         return self.child.interpret(ctx)
-
 
 
 def pipe(node: Node, group: list[VIT]) -> VIT:

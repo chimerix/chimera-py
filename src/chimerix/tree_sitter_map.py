@@ -87,7 +87,7 @@ def to_vit(node: Node) -> VIT:
                         right=to_vit(right),
                     )
                 case b".":
-                    return vit.TreeCall(
+                    return vit.DotCall(
                         node,
                         callee=to_vit(left),
                         argument=to_vit(right),

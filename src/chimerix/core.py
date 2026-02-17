@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Self
+from typing import Iterable, Self
 
 from chimerix.value import Error, Value
 
@@ -26,9 +26,7 @@ class ArgStack:
     prev: Self | None
 
     def append_stack(self, other: Self) -> "ArgStack":
-        if other.prev is None:
-            return ArgStack(other.value, self)
-        return self.append_stack(other.prev)
+        return ArgStack(other.value, self if other.prev is None else self.append_stack(other.prev))
 
     def __len__(self):
         count = 1
@@ -36,6 +34,13 @@ class ArgStack:
         while (next := next.prev):
             count += 1
         return count
+
+    def debug(self) -> Iterable[VIT]:
+        yield self.value.tree
+        next = self
+        while (next := next.prev):
+            yield next.value.tree
+
 
 
 @dataclass
@@ -87,6 +92,7 @@ class Context:
             appended_simple_args = simple_args
         else:
             appended_simple_args = self.simple_args.append_stack(simple_args)
+
         return Context(
             tree_args=appended_tree_args,
             simple_args=appended_simple_args,
