@@ -1,8 +1,9 @@
 from dataclasses import dataclass
+from typing import Callable
 
 from tree_sitter import Node
 
-from chimerix.core import VIT, ArgStack, Context, LazyValue
+from chimerix.core import VIT, Context, LazyValue
 from chimerix.ts_helpers import error_format
 from chimerix.value import Error, Value
 
@@ -48,20 +49,20 @@ class TreeCall(TreeSitterVIT):
         return self.callee.interpret(ctx_with_tree_arg)
 
 
-@dataclass
-class DotCall(TreeSitterVIT):
-    callee: VIT
-    argument: VIT
+# @dataclass
+# class TreeCall(TreeSitterVIT):
+#     callee: VIT
+#     argument: VIT
 
-    def interpret(self, ctx: Context) -> Value:
-        return self.callee.interpret(
-            Context(
-                tree_args=ArgStack(LazyValue(self.argument, ctx), ctx.tree_args),
-                simple_args=None,
-                local_context=ctx.local_context,
-                outer_context=ctx.outer_context,
-            )
-        )
+#     def interpret(self, ctx: Context) -> Value:
+#         return self.callee.interpret(
+#             Context(
+#                 tree_args=ArgStack(LazyValue(self.argument, ctx), ctx.tree_args),
+#                 simple_args=None,
+#                 local_context=ctx.local_context,
+#                 outer_context=ctx.outer_context,
+#             )
+#         )
 
 
 @dataclass
@@ -112,7 +113,7 @@ class String(TreeSitterVIT):
     def interpret(self, ctx: Context) -> Value:
         _ = ctx
         try:
-            return Value(str(self.value))
+            return Value(self.value.decode())
         except:
             return Value(Error(f"Error parsing number: `{self.value.decode()}`"))
 
@@ -157,20 +158,60 @@ class Assign(TreeSitterVIT):
         key = self.left.value
         ctx, arg = ctx.pop_tree_arg()
         return arg.value.tree.interpret(
-            ctx.append_local(key, LazyValue(self.right, ctx))
+            ctx.append_local(
+                key,
+                LazyValue(
+                    self.right,
+                    Context(None, None, ctx.local_context, ctx.outer_context),
+                ),
+            )
         )
 
 
 @dataclass
-class ArgumentPrefix(TreeSitterVIT):
+class Escaper(VIT):
+    def interpret(self, ctx: "Context") -> Value:
+        ctx, arg = ctx.pop_tree_arg()
+        return arg.value.tree.interpret(
+            Context(
+                None,
+                None,
+                None,
+                (
+                    ctx.outer_context.append_stack(ctx.local_context)
+                    if ctx.outer_context and ctx.local_context
+                    else ctx.local_context
+                ),
+            )
+        )
+
+
+@dataclass
+class Portal(TreeSitterVIT):
     child: VIT
 
     def interpret(self, ctx: Context) -> Value:
+
+        if isinstance(self.child, Variable):
+            found = ctx.find_outer(self.child.value)
+            if self.child.value == b"len":
+                print("THIS IS ME!")
+                print(f"{found=}")
+            if found is None:
+                return Value(
+                    Error(
+                        f"portal `{self.child.value.decode()}` not found"
+                        + error_format(self.node)
+                    )
+                )
+            return found.tree.interpret(
+                found.context.append_args(ctx.tree_args, ctx.simple_args)
+            )
         value = self.child.interpret(ctx)
         if isinstance(value.pointer, Error):
             return value
         if not isinstance(value.pointer, int):
-            return Value(Error(f"`%` child should be int, got `{value.pointer}`"))
+            return Value(Error(f"`@` child should be int, got `{value.pointer}`"))
         next = ctx.simple_args
         for _ in range(value.pointer):
             if next is None:
@@ -190,9 +231,20 @@ class DebugNode(TreeSitterVIT):
 
         rich.print("-------<")
         log("DEGUG", error_format(self.node))
-        list(map(rich.print ,(ctx.simple_args.debug() if ctx.simple_args else ())))
+        list(map(rich.print, (ctx.simple_args.debug() if ctx.simple_args else ())))
         rich.print(">-------")
         return self.child.interpret(ctx)
+
+
+CustomFuncType = Callable[[Context], Value]
+
+
+@dataclass
+class CustomFunc(VIT):
+    func: Callable[[Context], Value]
+
+    def interpret(self, ctx: "Context") -> Value:
+        return self.func(ctx)
 
 
 def pipe(node: Node, group: list[VIT]) -> VIT:

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Iterable, Self
+from typing import Callable, Iterable, Self
 
 from chimerix.value import Error, Value
 
@@ -25,22 +25,23 @@ class ArgStack:
     value: LazyValue
     prev: Self | None
 
-    def append_stack(self, other: Self) -> "ArgStack":
-        return ArgStack(other.value, self if other.prev is None else self.append_stack(other.prev))
+    def append_stack(self, other: Self) -> Self:
+        return self.__class__(
+            other.value, self if other.prev is None else self.append_stack(other.prev)
+        )
 
     def __len__(self):
         count = 1
         next = self
-        while (next := next.prev):
+        while next := next.prev:
             count += 1
         return count
 
     def debug(self) -> Iterable[VIT]:
         yield self.value.tree
         next = self
-        while (next := next.prev):
+        while next := next.prev:
             yield next.value.tree
-
 
 
 @dataclass
@@ -63,6 +64,7 @@ class Context:
     local_context: KeyValueStack | None = None
     outer_context: KeyValueStack | None = None
 
+
     def append_tree_arg(self, arg: LazyValue) -> "Context":
         return Context(
             tree_args=ArgStack(arg, self.tree_args),
@@ -79,7 +81,9 @@ class Context:
             outer_context=self.outer_context,
         )
 
-    def append_args(self, tree_args: ArgStack | None, simple_args: ArgStack | None) -> "Context":
+    def append_args(
+        self, tree_args: ArgStack | None, simple_args: ArgStack | None
+    ) -> "Context":
         if tree_args is None:
             appended_tree_args = self.tree_args
         elif self.tree_args is None:
@@ -125,9 +129,7 @@ class Context:
     def find_outer(self, variable: bytes) -> LazyValue | None:
         return self._find(variable, self.outer_context)
 
-    def _find(
-        self, variable: bytes, head: KeyValueStack | None
-    ) -> LazyValue | None:
+    def _find(self, variable: bytes, head: KeyValueStack | None) -> LazyValue | None:
         next = head
         while True:
             if next is None:
@@ -137,9 +139,11 @@ class Context:
                 return next.value
             next = next.prev
 
+
 def ctx_debug(head: KeyValueStack | None) -> str:
     joined = b" | ".join(head.iter_keys()) if head else b"<empty>"
     return joined.decode()
+
 
 def ctx_len(head: KeyValueStack | None) -> int:
     return len(list(head.iter_keys())) if head else 0

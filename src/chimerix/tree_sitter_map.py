@@ -46,7 +46,9 @@ def to_vit(node: Node) -> VIT:
         case TreeSitterTypes.const_value:
             return to_vit(_child_0(node))
         case TreeSitterTypes.const_number:
-            return vit.Int(node, node.text or b"???")
+            return vit.Int(node, node.text or b"?!?")
+        case TreeSitterTypes.const_string:
+            return vit.String(node, node.text.strip(b'"') if node.text else b"???")
         case TreeSitterTypes.binary_expression:
             left = _child_0(node)
             operator = _child_1(node)
@@ -87,7 +89,7 @@ def to_vit(node: Node) -> VIT:
                         right=to_vit(right),
                     )
                 case b".":
-                    return vit.DotCall(
+                    return vit.TreeCall(
                         node,
                         callee=to_vit(left),
                         argument=to_vit(right),
@@ -111,9 +113,11 @@ def to_vit(node: Node) -> VIT:
             argument = _child_1(node)
             match operator.text:
                 case b"%":
-                    return vit.ArgumentPrefix(node, to_vit(argument))
+                    return vit.Portal(node, to_vit(argument))
                 case b"$":
                     return vit.DebugNode(node, to_vit(argument))
+                case b"@":
+                    return vit.Portal(node, to_vit(argument))
                 case _:
                     return vit.VITError(node, f"Unknown Unary Operation {node.text}")
         case TreeSitterTypes.identifier:
